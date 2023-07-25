@@ -1,6 +1,4 @@
-
 from expected_gradients import AttributionPriorExplainer
-
 import torch
 import torch.nn as nn
 from captum.attr import IntegratedGradients
@@ -9,16 +7,16 @@ from captum.attr import IntegratedGradients
 
 class GradientLoss(nn.Module):
 
-    def __init__(self, mulIn=True, steps=30, ref_data=None, k_ref=1, batch_size=None, p_null_ref=0):
+    def __init__(self, loss="BCEwL", mulIn=False, steps=0, ref_data=None, k_ref=1, batch_size=None, p_null_ref=0):
         super(GradientLoss,self).__init__()
 
+        self.loss =loss
         self.BCE = torch.nn.BCEWithLogitsLoss()
         self.mulIn = mulIn
-        self.steps = steps
         self.exp_grads = None
         if batch_size is not None:
             self.exp_grads = AttributionPriorExplainer(ref_data, batch_size, k=k_ref, scale_by_inputs=mulIn, p_null_ref=p_null_ref)
-  
+
     def forward(self, source, img, target, size=None, middle=False):
         assert(img.requires_grad==True)
         ##IG
@@ -36,14 +34,15 @@ class GradientLoss(nn.Module):
             attributions = self.exp_grads.shap_values(source, img)
         ##G
         else:
-            mode='trilinear' if len(img.size())==5 else 'bilinear'
-            output = source(img)       
-            output = torch.mean(output, list(range(1, len(output.size())))) 
+            output = source(img)
+            output = torch.mean(output, list(range(1, len(output.size()))))
             attributions = torch.autograd.grad(output, img, grad_outputs=torch.ones_like(output), create_graph=True)[0]
-        
-        loss = torch.tensor(0.).to(Device.device)
-		target_init = target
+            if self.mulIn:
+                attributions = attributions * img
+
+        target_init = target
         if target_init is not None:
+            target = target_init
             while target.size()[1] != attributions.size()[1]:
                 target = torch.cat((target, target_init), 1)
             att_toComp =  attributions[~target.isnan()]
@@ -60,5 +59,6 @@ class GradientLoss(nn.Module):
             else:
                 raise NameError('Unknown gradient loss')
 
-        
         return loss, attributions
+                                                                                                                                                                                                                                                              43,1         Haut
+
