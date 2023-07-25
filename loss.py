@@ -12,7 +12,7 @@ class GradientLoss(nn.Module):
     def __init__(self, mulIn=True, steps=30, ref_data=None, k_ref=1, batch_size=None, p_null_ref=0):
         super(GradientLoss,self).__init__()
 
-        self.BCE = torch.nn.BCELoss()
+        self.BCE = torch.nn.BCEWithLogitsLoss()
         self.mulIn = mulIn
         self.steps = steps
         self.exp_grads = None
